@@ -1,0 +1,483 @@
+local HttpService = cloneref(game:GetService("HttpService"))
+local isfunctionhooked = clonefunction(isfunctionhooked)
+if isfunctionhooked(game.HttpGet) or isfunctionhooked(getnamecallmethod) or isfunctionhooked(request) then 
+    return 
+end
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+local CurrentCamera = Workspace.CurrentCamera
+
+local UI_Library_URL = "https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"
+local WindUI = loadstring(game:HttpGet(UI_Library_URL))()
+
+WindUI.TransparencyValue = 0.2
+WindUI:SetTheme("Dark")
+
+-- 渐变文字函数
+local function gradient(text, startColor, endColor)
+    local result = ""
+    for i = 1, #text do
+        local t = (i - 1) / (#text - 1)
+        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
+        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
+        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
+        result = result .. string.format('<font color="rgb(%d,%d,%d)">%s</font>', r, g, b, text:sub(i, i))
+    end
+    return result
+end
+
+local Window = WindUI:CreateWindow({
+    Title = "<font color='#B0E0E6'>孟佳豪｜速度传奇</font><font color='#B0E0E6'></font>",
+    Icon = "https://raw.githubusercontent.com/zxcywtywt/Bei-fany/refs/heads/main/Image_1782325927798_651.jpg",
+    Draggable = true,
+    IconTransparency = 1,
+    Author = "<font color='#B0E0E6'>速度传奇</font>",
+    Folder = "BEI Hub｜Pro Max",
+    Size = UDim2.fromOffset(500, 100),
+    Transparent = true,
+    Theme = "Dark",
+    UserEnabled = true,
+    SideBarWidth = 200,
+    HasOutline = true,
+    Background = "https://raw.githubusercontent.com/zxcywtywt/Bei-fany/refs/heads/main/Image_1782325927798_651.jpg",
+    User = {
+        Enabled = true,
+        Anonymous = false,
+        Player = LocalPlayer,
+        Callback = function()
+            WindUI:Notify({
+                Title = "用户资料",
+                Content = "蛋仔用户！",
+                Duration = 3
+            })
+        end
+    }
+})
+
+Window:Tag({
+    Title = "v1.2",
+    Color = Color3.fromHex("80FFFF")
+})
+
+Window:CreateTopbarButton("theme-switcher", "moon", function()
+    WindUI:SetTheme(WindUI:GetCurrentTheme() == "Indigo" and "Dark" or "Indigo")
+    WindUI:Notify({
+        Title = "主题已更改",
+        Content = "当前主题："..WindUI:GetCurrentTheme(),
+        Duration = 2
+    })
+end, 990)
+
+local COLOR_SCHEMES = {
+    ["彩虹颜色"] = {ColorSequence.new({
+        ColorSequenceKeypoint.new(0,    Color3.fromHex("80FFFF")),
+        ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFFFFF")),
+        ColorSequenceKeypoint.new(0.33, Color3.fromHex("80FFFF")),
+        ColorSequenceKeypoint.new(0.5,  Color3.fromHex("FFFFFF")),
+        ColorSequenceKeypoint.new(0.66, Color3.fromHex("80FFFF")),
+        ColorSequenceKeypoint.new(0.83, Color3.fromHex("FFFFFF")),
+        ColorSequenceKeypoint.new(1,    Color3.fromHex("80FFFF"))
+    }), "palette"},
+
+    ["青白渐变"] = {ColorSequence.new({
+        ColorSequenceKeypoint.new(0,   Color3.fromHex("80FFFF")),
+        ColorSequenceKeypoint.new(0.5, Color3.fromHex("FFFFFF")),
+        ColorSequenceKeypoint.new(1,   Color3.fromHex("80FFFF"))
+    }), "waves"},
+}
+
+local borderAnimation
+local animationSpeed = 5
+
+local function createRainbowBorder(window, colorScheme)
+    local mainFrame = window.UIElements.Main
+    if not mainFrame then return nil end
+
+    local existingStroke = mainFrame:FindFirstChild("RainbowStroke")
+    if existingStroke then existingStroke:Destroy() end
+
+    if not mainFrame:FindFirstChildOfClass("UICorner") then
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 16)
+        corner.Parent = mainFrame
+    end
+
+    local rainbowStroke = Instance.new("UIStroke")
+    rainbowStroke.Name = "RainbowStroke"
+    rainbowStroke.Thickness = 2
+    rainbowStroke.Color = Color3.new(1, 1, 1)
+    rainbowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    rainbowStroke.LineJoinMode = Enum.LineJoinMode.Round
+    rainbowStroke.Parent = mainFrame
+
+    local glowEffect = Instance.new("UIGradient")
+    glowEffect.Name = "GlowEffect"
+    local schemeData = COLOR_SCHEMES[colorScheme or "彩虹颜色"]
+    glowEffect.Color = schemeData and schemeData[1] or COLOR_SCHEMES["彩虹颜色"][1]
+    glowEffect.Rotation = 0
+    glowEffect.Parent = rainbowStroke
+
+    return rainbowStroke
+end
+
+local function startBorderAnimation(window, speed)
+    local mainFrame = window.UIElements.Main
+    if not mainFrame then return nil end
+    local rainbowStroke = mainFrame:FindFirstChild("RainbowStroke")
+    if not rainbowStroke then return nil end
+    local glowEffect = rainbowStroke:FindFirstChild("GlowEffect")
+    if not glowEffect then return nil end
+
+    return game:GetService("RunService").Heartbeat:Connect(function()
+        if not rainbowStroke or rainbowStroke.Parent == nil then return end
+        glowEffect.Rotation = (tick() * speed * 10) % 360
+    end)
+end
+
+local rainbowStroke = createRainbowBorder(Window, "彩虹颜色")
+if rainbowStroke then
+    borderAnimation = startBorderAnimation(Window, animationSpeed)
+end
+
+local Lighting = game:GetService("Lighting")
+local TweenServiceBlur = game:GetService("TweenService")
+
+local blur = Lighting:FindFirstChildOfClass("BlurEffect")
+if not blur then
+    blur = Instance.new("BlurEffect")
+    blur.Size = 0
+    blur.Parent = Lighting
+end
+
+task.spawn(function()
+    local wasOpen = false
+    while true do
+        task.wait(0.1)
+        local mainFrame = Window.UIElements and Window.UIElements.Main
+        local isOpen = mainFrame and mainFrame.Visible or false
+        
+        if isOpen ~= wasOpen then
+            wasOpen = isOpen
+            TweenServiceBlur:Create(blur, TweenInfo.new(0.3), {
+                Size = isOpen and 20 or 0
+            }):Play()
+        end
+    end
+end)
+
+local defaultWalkSpeed = 16
+local currentWalkMultiplier = 1
+
+local defaultJumpPower = 50
+local currentJumpMultiplier = 1
+
+local defaultGravity = Workspace.Gravity
+local currentGravityMultiplier = 1
+
+-- 敌人碰撞箱调节相关
+local currentEnemyCollisionMultiplier = 0 -- 0为关闭状态
+local enemyCollisionData = {} -- 存储每个敌人角色的原始数据与显示框
+
+local function applyEnemyCollision(character, multiplier)
+    if not character then return end
+    local Humanoid = character:FindFirstChildOfClass("Humanoid")
+    local HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not Humanoid or not HumanoidRootPart then return end
+
+    if not enemyCollisionData[character] then
+        local originalCanCollide = {}
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                originalCanCollide[part] = part.CanCollide
+            end
+        end
+
+        -- 创建半青色碰撞范围线框
+        local displayBox = Instance.new("SelectionBox")
+        displayBox.Name = "EnemyCollisionBox"
+        displayBox.Adornee = HumanoidRootPart
+        displayBox.Color3 = Color3.fromRGB(0, 255, 255) -- 青色
+        displayBox.Transparency = 0.5 -- 半透明
+        displayBox.LineThickness = 0.05
+        displayBox.SurfaceTransparency = 1 -- 仅线框，表面透明
+        displayBox.Visible = multiplier > 0
+        displayBox.Parent = HumanoidRootPart
+
+        enemyCollisionData[character] = {
+            originalSize = HumanoidRootPart.Size,
+            originalHipHeight = Humanoid.HipHeight,
+            originalCanCollide = originalCanCollide,
+            displayBox = displayBox
+        }
+
+        character.Destroying:Connect(function()
+            enemyCollisionData[character] = nil
+        end)
+    end
+
+    local data = enemyCollisionData[character]
+    if multiplier <= 0 then
+        for part, originalState in pairs(data.originalCanCollide) do
+            if part:IsDescendantOf(character) then
+                part.CanCollide = originalState
+            end
+        end
+        HumanoidRootPart.Size = data.originalSize
+        Humanoid.HipHeight = data.originalHipHeight
+        data.displayBox.Visible = false
+    else
+        for part, _ in pairs(data.originalCanCollide) do
+            if part:IsDescendantOf(character) then
+                part.CanCollide = (part == HumanoidRootPart)
+            end
+        end
+        HumanoidRootPart.Size = data.originalSize * multiplier
+        Humanoid.HipHeight = data.originalHipHeight * multiplier
+        data.displayBox.Visible = true
+    end
+end
+
+local function onPlayerAdded(player)
+    if player == LocalPlayer then return end
+
+    player.CharacterAdded:Connect(function(character)
+        applyEnemyCollision(character, currentEnemyCollisionMultiplier)
+    end)
+
+    if player.Character then
+        applyEnemyCollision(player.Character, currentEnemyCollisionMultiplier)
+    end
+end
+
+Players.PlayerRemoving:Connect(function(player)
+    if player.Character and enemyCollisionData[player.Character] then
+        enemyCollisionData[player.Character] = nil
+    end
+end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        onPlayerAdded(player)
+    end
+end
+
+local function onCharacterSpawn(character)
+    local Humanoid = character:WaitForChild("Humanoid", 3)
+    if not Humanoid then return end
+    
+    defaultWalkSpeed = Humanoid.WalkSpeed
+    defaultJumpPower = Humanoid.JumpPower
+    
+    Humanoid.WalkSpeed = defaultWalkSpeed * currentWalkMultiplier
+    Humanoid.JumpPower = defaultJumpPower * currentJumpMultiplier
+end
+
+if LocalPlayer.Character then
+    onCharacterSpawn(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(onCharacterSpawn)
+
+local Tab_jb = Window:Tab({
+    ["Locked"] = false,
+    ["Title"] = "玩家调节",
+    ["Icon"] = "globe",
+})
+
+Tab_jb:Input({
+    ["Title"] = "移动速度倍率",
+    ["Placeholder"] = "输入数字，如 2",
+    ["Default"] = "1",
+    ["InputType"] = "Number",
+    ["Callback"] = function(value)
+        local num = tonumber(value)
+        if not num or num <= 0 then return end
+        
+        currentWalkMultiplier = num
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed = defaultWalkSpeed * num
+            end
+        end
+    end
+})
+
+Tab_jb:Input({
+    ["Title"] = "跳跃力倍率",
+    ["Placeholder"] = "输入数字，如 2",
+    ["Default"] = "1",
+    ["InputType"] = "Number",
+    ["Callback"] = function(value)
+        local num = tonumber(value)
+        if not num or num <= 0 then return end
+        
+        currentJumpMultiplier = num
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.JumpPower = defaultJumpPower * num
+            end
+        end
+    end
+})
+
+Tab_jb:Input({
+    ["Title"] = "重力倍率",
+    ["Placeholder"] = "输入数字，如 0.5",
+    ["Default"] = "1",
+    ["InputType"] = "Number",
+    ["Callback"] = function(value)
+        local num = tonumber(value)
+        if not num or num <= 0 then return end
+        
+        currentGravityMultiplier = num
+        Workspace.Gravity = defaultGravity * num
+    end
+})
+
+Tab_jb:Input({
+    ["Title"] = "敌人碰撞箱范围倍率",
+    ["Placeholder"] = "输入0关闭，如 1.5",
+    ["Default"] = "0",
+    ["InputType"] = "Number",
+    ["Callback"] = function(value)
+        local num = tonumber(value)
+        if not num or num < 0 then return end
+        
+        currentEnemyCollisionMultiplier = num
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                applyEnemyCollision(player.Character, num)
+            end
+        end
+    end
+})
+
+local MainSection = Window:Section({Title = "主功能", Opened = true})
+local function AddTab(section, title, icon) return section:Tab({Title = title, Icon = icon}) end
+
+local A = AddTab(MainSection, "主要", "rbxassetid://7734068321")  
+local B = AddTab(MainSection, "卡宠", "rbxassetid://7734068321")  
+local C = AddTab(MainSection, "宝石", "rbxassetid://7734068321")  
+local D = AddTab(MainSection, "比赛", "rbxassetid://7734068321")  
+local E = AddTab(MainSection, "传送", "rbxassetid://7734068321")  
+local F = AddTab(MainSection, "重生", "rbxassetid://7734068321")  
+local G = AddTab(MainSection, "修改", "rbxassetid://7734068321")  
+local J = AddTab(MainSection, "通用", "rbxassetid://7734068321")
+
+local extraSection = A:Section({Title = "额外", Opened = true})
+extraSection:Button({Title = "收集全部宝箱", Callback = function()
+    for _, v in pairs(game.ReplicatedStorage.chestRewards:GetChildren()) do
+        game.ReplicatedStorage.rEvents.checkChestRemote:InvokeServer(v.Name)
+    end
+end})
+extraSection:Button({Title = "解锁全部通行证", Callback = function()
+    for i, v in ipairs(game:GetService("ReplicatedStorage").gamepassIds:GetChildren()) do
+        v.Parent = game.Players.LocalPlayer.ownedGamepasses
+    end
+end})
+extraSection:Toggle({Title = "吸全部环", Default = false, Callback = function(state)
+    getgenv().HoopEnabled = state
+    if state then spawn(function()
+        while getgenv().HoopEnabled and task.wait() do
+            pcall(function()
+                local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
+                for _, hoop in ipairs(workspace.Hoops:GetChildren()) do
+                    if hoop.Name == "Hoop" then hoop.CFrame = hrp.CFrame end
+                end
+            end)
+        end
+    end) end
+end})
+
+local Interstellar = {area = "City", getorb = false}
+local areaOptions = {"City","Snow City","Magma City","Desert","Space", "Legends Highway", "Speed Jungle"}
+local areaDisplayNames = {"城市","雪城","熔岩城","沙漠","太空","传奇公路","丛林"}
+local cardPetSection1 = B:Section({Title = "卡宠模式1", Opened = true})
+cardPetSection1:Dropdown({Title = "选择地区", Values = areaDisplayNames, Value = "城市", Callback = function(Value)
+    Interstellar.area = areaOptions[table.find(areaDisplayNames, Value)]
+end})
+
+local function orbFarm(type)
+    spawn(function()
+        while Interstellar.getorb do
+            for i=1,50 do game.ReplicatedStorage.rEvents.orbEvent:FireServer("collectOrb", type, Interstellar.area) end
+            wait(0.05)
+        end
+    end)
+end
+
+cardPetSection1:Toggle({Title = "紫球", Callback = function(s) Interstellar.getorb = s if s then orbFarm("Ethereal Orb") end end})
+cardPetSection1:Toggle({Title = "红球", Callback = function(s) Interstellar.getorb = s if s then orbFarm("Red Orb") end end})
+cardPetSection1:Toggle({Title = "蓝球", Callback = function(s) Interstellar.getorb = s if s then orbFarm("Blue Orb") end end})
+cardPetSection1:Toggle({Title = "橙球", Callback = function(s) Interstellar.getorb = s if s then orbFarm("Orange Orb") end end})
+cardPetSection1:Toggle({Title = "经验球", Callback = function(s) Interstellar.getorb = s if s then orbFarm("Yellow Orb") end end})
+
+local Interstellar2 = {area = "City", orbType = "Yellow Orb", multiplier = 1, rateEnabled = false}
+local cardPetSection2 = B:Section({Title = "自定义-卡宠模式2", Opened = true})
+cardPetSection2:Input({Title = "输入倍率", Callback = function(v) Interstellar2.multiplier = math.clamp(tonumber(v) or 1, 1, 10000) end})
+cardPetSection2:Toggle({Title = "卡宠速度总开关", Callback = function(state)
+    Interstellar2.rateEnabled = state
+    if state then spawn(function()
+        while Interstellar2.rateEnabled do
+            for i = 1, Interstellar2.multiplier do
+                game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer("collectOrb", Interstellar2.orbType, Interstellar2.area)
+            end
+            task.wait()
+        end
+    end) end
+end})
+
+local gemSection = C:Section({Title = "宝石模式", Opened = true})
+local function gemFarm(area, flag)
+    spawn(function() while getgenv()[flag] do 
+        for i=1,10 do game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer("collectOrb", "Gem", area) end
+        wait() 
+    end end)
+end
+gemSection:Toggle({Title = "城市宝石", Callback = function(s) getgenv().sbsA = s gemFarm("City", "sbsA") end})
+gemSection:Toggle({Title = "雪城宝石", Callback = function(s) getgenv().sbsB = s gemFarm("Snow City", "sbsB") end})
+
+local raceSection = D:Section({Title = "比赛", Opened = true})
+raceSection:Toggle({Title = "自动比赛", Callback = function(s) autoRace = s if s then spawn(function() while autoRace do game:GetService("ReplicatedStorage").rEvents.raceEvent:FireServer("joinRace") wait() end end) end end})
+
+local teleportSection = E:Section({Title = "传送点", Opened = true})
+teleportSection:Button({Title = "城市", Callback = function() game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(2002, 1, 985) end})
+teleportSection:Button({Title = "雪城", Callback = function() game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-9675, 60, 3783) end})
+teleportSection:Button({Title = "熔岩", Callback = function() game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(2203.98, 5.80, 4306.34) end})
+teleportSection:Button({Title = "丛林", Callback = function() game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(1878.01, 5.23, 12882.53) end})
+
+local rebirthSection1 = F:Section({Title = "自动重生", Opened = true})
+rebirthSection1:Toggle({Title = "自动重生", Callback = function(state)
+    Interstellar.mainexe = state
+    if state then spawn(function() while Interstellar.mainexe do pcall(function() game:GetService("ReplicatedStorage").rEvents.rebirthEvent:FireServer("rebirthRequest") end) wait() end end) end
+end})
+
+local modifySection = G:Section({Title = "数值美化", Opened = true})
+modifySection:Input({Title = "修改等级", Callback = function(v) if tonumber(v) then game.Players.LocalPlayer.level.Value = tonumber(v) end end})
+modifySection:Input({Title = "修改宝石", Callback = function(v) if tonumber(v) then game.Players.LocalPlayer.Gems.Value = tonumber(v) end end})
+
+local otherSection = J:Section({Title = "常用功能", Opened = true})
+otherSection:Toggle({Title = "穿墙", Callback = function(state)
+    if state then getgenv().noclip = game:GetService("RunService").Stepped:Connect(function()
+        for _, v in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
+    end) else if getgenv().noclip then getgenv().noclip:Disconnect() end end
+end})
+ otherSection:Button({Title = "飞行",Callback = function()
+ loadstring(game:HttpGet("https://raw.githubusercontent.com/zxcywtywt/BEI/0359ee6e2e3c2e92c22522aef9219ba0e65384c9/飞行"))()
+     end
+ })
+WindUI:Notify({Title = "状态", Content = "脚本加载成功 - 反挂机已开启", Duration = 3})
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
+    game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    wait(1)
+    game:GetService("VirtualUser"):Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+end)
